@@ -142,6 +142,7 @@ public class SimpleCanalConnector implements CanalConnector {
     private InetSocketAddress doConnect() throws CanalClientException {
         try {
             channel = SocketChannel.open();
+            /* 设置socket超时时间，超时会抛出SocketException */
             channel.socket().setSoTimeout(soTimeout);
             SocketAddress address = getAddress();
             if (address == null) {

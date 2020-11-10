@@ -69,8 +69,8 @@ public class CanalConnectors {
             password,
             destination,
             new ClusterNodeAccessStrategy(destination, ZkClientx.getZkClient(zkServers)));
-        canalConnector.setSoTimeout(60 * 1000);
-        canalConnector.setIdleTimeout(60 * 60 * 1000);
+        canalConnector.setSoTimeout(60 * 1000); // 1 min
+        canalConnector.setIdleTimeout(60 * 60 * 1000); // 1 hour
         return canalConnector;
     }
 }

@@ -13,7 +13,7 @@ import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 
 /**
  * 集群版本connector实现，自带了failover功能<br/>
- * 
+ *
  * @author jianghang 2012-10-29 下午08:04:06
  * @version 1.0.0
  */
@@ -42,6 +42,7 @@ public class ClusterCanalConnector implements CanalConnector {
     public void connect() throws CanalClientException {
         while (currentConnector == null) {
             int times = 0;
+            /* 轮询尝试连接 */
             while (true) {
                 try {
                     currentConnector = new SimpleCanalConnector(null, username, password, destination) {
@@ -246,7 +247,7 @@ public class ClusterCanalConnector implements CanalConnector {
     }
 
     public void ack(long batchId) throws CanalClientException {
-        int times = 0;
+        int times = 0; // 错误次数
         while (times < retryTimes) {
             try {
                 currentConnector.ack(batchId);
@@ -263,6 +264,13 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to ack after " + times + " times retry");
     }
 
+    /**
+     * 重启服务
+     * 1.断开连接
+     * 2.休眠一段时间
+     * 3.尝试连接
+     * @throws CanalClientException
+     */
     private void restart() throws CanalClientException {
         disconnect();
         try {

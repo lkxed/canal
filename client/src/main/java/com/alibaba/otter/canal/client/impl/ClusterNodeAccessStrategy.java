@@ -44,10 +44,12 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
 
         dataListener = new IZkDataListener() {
 
+            /* 节点删除事件：runningAddress = null */
             public void handleDataDeleted(String dataPath) throws Exception {
                 runningAddress = null;
             }
 
+            /* 节点变更事件：基于新数据重新初始化 running 节点 */
             public void handleDataChange(String dataPath, Object data) throws Exception {
                 initRunning(data);
             }
@@ -74,6 +76,7 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
         } else if (!currentAddress.isEmpty()) { // 如果不存在已经启动的服务，可能服务是一种lazy启动，随机选择一台触发服务器进行启动
             return currentAddress.get(0);// 默认返回第一个节点，之前已经做过shuffle
         } else {
+            /* currentAddress为空 */
             throw new ServerNotFoundException("no alive canal server for " + destination);
         }
     }
@@ -99,10 +102,12 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
         if (data == null) {
             return;
         }
-
+        /* 反序列化 */
         ServerRunningData runningData = JsonUtils.unmarshalFromByte((byte[]) data, ServerRunningData.class);
+        /* 分割IP和端口*/
         String[] strs = StringUtils.split(runningData.getAddress(), ':');
         if (strs.length == 2) {
+            /* runningAddress指向新的地址对象 */
             runningAddress = new InetSocketAddress(strs[0], Integer.valueOf(strs[1]));
         }
     }

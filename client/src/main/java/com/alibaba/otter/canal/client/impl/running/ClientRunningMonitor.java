@@ -25,7 +25,7 @@ import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
 import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 
 /**
- * clinet running控制
+ * client running控制
  * 
  * @author jianghang 2012-11-22 下午03:43:01
  * @version 1.0.0

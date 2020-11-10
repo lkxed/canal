@@ -30,6 +30,11 @@ public class SimpleNodeAccessStrategy implements CanalNodeAccessStrategy {
         } finally {
             index = (index + 1) % nodes.size();
         }
+        /* 等价于
+        SocketAddress address = nodes.get(index);
+        index = (index + 1) % nodes.size();
+        return address;
+        */
     }
 
     @Override
