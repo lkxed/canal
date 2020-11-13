@@ -1,11 +1,12 @@
 package com.alibaba.otter.canal.client.impl.running;
 
-import java.net.InetSocketAddress;
-import java.text.MessageFormat;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
+import com.alibaba.otter.canal.client.impl.ServerNotFoundException;
+import com.alibaba.otter.canal.common.AbstractCanalLifeCycle;
+import com.alibaba.otter.canal.common.utils.BooleanMutex;
+import com.alibaba.otter.canal.common.utils.JsonUtils;
+import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
+import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
+import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 import org.I0Itec.zkclient.IZkDataListener;
 import org.I0Itec.zkclient.exception.ZkException;
 import org.I0Itec.zkclient.exception.ZkInterruptedException;
@@ -16,36 +17,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import com.alibaba.otter.canal.client.impl.ServerNotFoundException;
-import com.alibaba.otter.canal.common.AbstractCanalLifeCycle;
-import com.alibaba.otter.canal.common.utils.BooleanMutex;
-import com.alibaba.otter.canal.common.utils.JsonUtils;
-import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
-import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
-import com.alibaba.otter.canal.protocol.exception.CanalClientException;
+import java.net.InetSocketAddress;
+import java.text.MessageFormat;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * DONE
  * clinet running控制
- * 
+ *
  * @author jianghang 2012-11-22 下午03:43:01
  * @version 1.0.0
  */
 public class ClientRunningMonitor extends AbstractCanalLifeCycle {
 
-    private static final Logger        logger       = LoggerFactory.getLogger(ClientRunningMonitor.class);
-    private ZkClientx                  zkClient;
-    private String                     destination;
-    private ClientRunningData          clientData;
-    private IZkDataListener            dataListener;
-    private BooleanMutex               mutex        = new BooleanMutex(false);
-    private volatile boolean           release      = false;
+    private static final Logger logger = LoggerFactory.getLogger(ClientRunningMonitor.class);
+    private ZkClientx zkClient;
+    private String destination;
+    private ClientRunningData clientData;
+    private final IZkDataListener dataListener;
+    private final BooleanMutex mutex = new BooleanMutex(false);
+    private volatile boolean release = false;
     private volatile ClientRunningData activeData;
-    private ScheduledExecutorService   delayExector = Executors.newScheduledThreadPool(1);
-    private ClientRunningListener      listener;
-    private int                        delayTime    = 5;
+    private final ScheduledExecutorService delayExector = Executors.newScheduledThreadPool(1);
+    private ClientRunningListener listener;
+    private int delayTime = 5;
 
-    public ClientRunningMonitor(){
+    public ClientRunningMonitor() {
         dataListener = new IZkDataListener() {
 
             @Override
@@ -61,7 +60,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
                     releaseRunning();// 彻底释放mainstem
                 }
 
-                activeData = (ClientRunningData) runningData;
+                activeData = runningData;
             }
 
             @Override
@@ -121,7 +120,9 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
      * 3,增加异常处理，保证出现异常时，running节点能被删除,否则会导致死锁
      */
     public synchronized void initRunning() {
-        if (!isStart()) { return; }
+        if (!isStart()) {
+            return;
+        }
 
         String path = ZookeeperPathUtils
                 .getDestinationClientRunning(this.destination, clientData.getClientId());
@@ -153,13 +154,13 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
             /* 父节点1001不存在，创建后重新尝试初始化 */
             zkClient.createPersistent(ZookeeperPathUtils
                             .getClientIdNodePath(this.destination, clientData.getClientId()),
-                true);
+                    true);
             // 尝试创建父节点
             initRunning();
         } catch (Throwable t) {
             logger.error(MessageFormat.format("There is an error when execute initRunning method, with destination [{0}].",
-                destination),
-                t);
+                    destination),
+                    t);
 
             // fixed issue 1220, 针对server节点不工作避免死循环
             if (t instanceof ServerNotFoundException) {
@@ -177,7 +178,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
 
     /**
      * 阻塞等待自己成为active，如果自己成为active，立马返回
-     * 
+     *
      * @throws InterruptedException
      */
     public void waitForActive() throws InterruptedException {
@@ -199,8 +200,8 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
             boolean result = isMine(activeData.getAddress());
             if (!result) {
                 logger.warn("canal is running in [{}] , but not in [{}]",
-                    activeData.getAddress(),
-                    clientData.getAddress());
+                        activeData.getAddress(),
+                        clientData.getAddress());
             }
             return result;
         } catch (ZkNoNodeException e) {
@@ -247,7 +248,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
             this.clientData.setAddress(address);
 
             String path = ZookeeperPathUtils.getDestinationClientRunning(this.destination,
-                this.clientData.getClientId());
+                    this.clientData.getClientId());
             // 序列化
             byte[] bytes = JsonUtils.marshalToByte(clientData);
             zkClient.writeData(path, bytes);

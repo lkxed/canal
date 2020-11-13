@@ -1,37 +1,36 @@
 package com.alibaba.otter.canal.client.impl;
 
+import com.alibaba.otter.canal.client.CanalNodeAccessStrategy;
+import com.alibaba.otter.canal.common.utils.JsonUtils;
+import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
+import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
+import com.alibaba.otter.canal.common.zookeeper.running.ServerRunningData;
+import org.I0Itec.zkclient.IZkChildListener;
+import org.I0Itec.zkclient.IZkDataListener;
+import org.apache.commons.lang.StringUtils;
+
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.I0Itec.zkclient.IZkChildListener;
-import org.I0Itec.zkclient.IZkDataListener;
-import org.apache.commons.lang.StringUtils;
-
-import com.alibaba.otter.canal.client.CanalNodeAccessStrategy;
-import com.alibaba.otter.canal.common.utils.JsonUtils;
-import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
-import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
-import com.alibaba.otter.canal.common.zookeeper.running.ServerRunningData;
-
 /**
  * 集群模式的调度策略
- * 
+ *
  * @author jianghang 2012-12-3 下午10:01:04
  * @version 1.0.0
  */
 public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
 
-    private String                           destination;
-    private IZkChildListener                 childListener;                                      // 监听所有的服务器列表
-    private IZkDataListener                  dataListener;                                       // 监听当前的工作节点
-    private ZkClientx                        zkClient;
+    private final String destination;
+    private final IZkChildListener childListener;                                      // 监听所有的服务器列表
+    private final IZkDataListener dataListener;                                       // 监听当前的工作节点
+    private ZkClientx zkClient;
     private volatile List<InetSocketAddress> currentAddress = new ArrayList<InetSocketAddress>();
-    private volatile InetSocketAddress       runningAddress = null;
+    private volatile InetSocketAddress runningAddress = null;
 
-    public ClusterNodeAccessStrategy(String destination, ZkClientx zkClient){
+    public ClusterNodeAccessStrategy(String destination, ZkClientx zkClient) {
         this.destination = destination;
         this.zkClient = zkClient;
         /* 子节点变更监听 */
@@ -118,12 +117,12 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
         }
     }
 
-    public void setZkClient(ZkClientx zkClient) {
-        this.zkClient = zkClient;
-    }
-
     public ZkClientx getZkClient() {
         return zkClient;
+    }
+
+    public void setZkClient(ZkClientx zkClient) {
+        this.zkClient = zkClient;
     }
 
 }

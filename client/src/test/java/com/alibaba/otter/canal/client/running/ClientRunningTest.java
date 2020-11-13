@@ -1,28 +1,24 @@
 package com.alibaba.otter.canal.client.running;
 
-import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.apache.commons.lang.math.RandomUtils;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.alibaba.otter.canal.client.impl.running.ClientRunningData;
 import com.alibaba.otter.canal.client.impl.running.ClientRunningListener;
 import com.alibaba.otter.canal.client.impl.running.ClientRunningMonitor;
 import com.alibaba.otter.canal.common.utils.AddressUtils;
 import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
 import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
+import org.apache.commons.lang.math.RandomUtils;
+import org.junit.*;
+
+import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @Ignore
 public class ClientRunningTest extends AbstractZkTest {
 
-    private ZkClientx zkclientx = new ZkClientx(cluster1 + ";" + cluster2);
-    private short     clientId  = 1001;
+    private final ZkClientx zkclientx = new ZkClientx(cluster1 + ";" + cluster2);
+    private final short clientId = 1001;
 
     @Before
     public void setUp() {

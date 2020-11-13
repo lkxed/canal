@@ -1,6 +1,5 @@
 package com.alibaba.otter.canal.client.test;
 
-import static com.alibaba.otter.canal.protocol.CanalEntry.*;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
@@ -8,11 +7,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.alibaba.otter.canal.protocol.CanalEntry.*;
+
 public class ParseTool {
     public static final Logger logger = LoggerFactory.getLogger(ParseTool.class);
 
     /**
      * 打印变更记录
+     *
      * @param entries 变更记录集合
      * @throws InvalidProtocolBufferException 解析错误
      */

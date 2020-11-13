@@ -1,15 +1,5 @@
 package com.alibaba.otter.canal.client.kafka;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.StringDeserializer;
-
 import com.alibaba.fastjson.JSON;
 import com.alibaba.otter.canal.client.CanalMQConnector;
 import com.alibaba.otter.canal.client.impl.SimpleCanalConnector;
@@ -17,6 +7,15 @@ import com.alibaba.otter.canal.protocol.FlatMessage;
 import com.alibaba.otter.canal.protocol.Message;
 import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 import com.google.common.collect.Lists;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.StringDeserializer;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * canal kafka 数据操作客户端
@@ -32,18 +31,18 @@ import com.google.common.collect.Lists;
 public class KafkaCanalConnector implements CanalMQConnector {
 
     protected KafkaConsumer<String, Message> kafkaConsumer;
-    protected KafkaConsumer<String, String>  kafkaConsumer2;                            // 用于扁平message的数据消费
-    protected String                         topic;
-    protected Integer                        partition;
-    protected Properties                     properties;
-    protected volatile boolean               connected      = false;
-    protected volatile boolean               running        = false;
-    protected boolean                        flatMessage;
+    protected KafkaConsumer<String, String> kafkaConsumer2;                            // 用于扁平message的数据消费
+    protected String topic;
+    protected Integer partition;
+    protected Properties properties;
+    protected volatile boolean connected = false;
+    protected volatile boolean running = false;
+    protected boolean flatMessage;
 
-    private Map<Integer, Long>               currentOffsets = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> currentOffsets = new ConcurrentHashMap<>();
 
     public KafkaCanalConnector(String servers, String topic, Integer partition, String groupId, Integer batchSize,
-                               boolean flatMessage){
+                               boolean flatMessage) {
         this.topic = topic;
         this.partition = partition;
         this.flatMessage = flatMessage;

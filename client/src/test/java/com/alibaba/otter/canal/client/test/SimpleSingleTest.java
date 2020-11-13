@@ -2,31 +2,34 @@ package com.alibaba.otter.canal.client.test;
 
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.client.CanalConnectors;
+import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.alibaba.otter.canal.protocol.CanalEntry.Entry;
-
-public class ZkClusterTest {
+public class SimpleSingleTest {
     private static final Logger logger = LoggerFactory.getLogger(SimpleSingleTest.class);
 
     public static void main(String[] args) {
-        String zkServers = "vm1:2181,vm1:2182,vm1:2183";
+        String host = "vm1";
+        int port = 11111;
+        SocketAddress address = new InetSocketAddress(host, port);
         String username = "canal";
         String password = "canal";
         String destination = "cap1";
 
         CanalConnector connector = CanalConnectors
-                .newClusterConnector(zkServers, destination, username, password);
+                .newSingleConnector(address, destination, username, password);
 
-        logger.info("connecting to {}...", zkServers);
+        logger.info("connecting to {}:{}...", host, port);
         connector.connect();
-        logger.info("connected to {}", zkServers);
+        logger.info("connected to {}:{}", host, port);
 
         String filter = ".*\\..*";
         connector.subscribe(filter);
@@ -48,7 +51,7 @@ public class ZkClusterTest {
                     }
                 } else {
                     logger.info("message id: {}", batchId);
-                    List<Entry> entries = message.getEntries();
+                    List<CanalEntry.Entry> entries = message.getEntries();
                     logger.info("message size: {}", batchSize);
                     ParseTool.printEntries(entries);
                 }

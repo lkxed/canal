@@ -1,11 +1,10 @@
 package com.alibaba.otter.canal.client.kafka;
 
-import java.util.Map;
-
-import org.apache.kafka.common.serialization.Deserializer;
-
 import com.alibaba.otter.canal.client.CanalMessageDeserializer;
 import com.alibaba.otter.canal.protocol.Message;
+import org.apache.kafka.common.serialization.Deserializer;
+
+import java.util.Map;
 
 /**
  * Kafka Message类的反序列化
