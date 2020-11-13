@@ -39,12 +39,17 @@ public class ClusterCanalConnector implements CanalConnector {
         this.accessStrategy = accessStrategy;
     }
 
+    @Override
     public void connect() throws CanalClientException {
         while (currentConnector == null) {
             int times = 0;
             /* 轮询尝试连接 */
             while (true) {
                 try {
+                    /* 初始化真正的代理对象，并重写getNextAddress方法
+                     * SimpleNodeStrategy.nextNode()：地址列表中随机选取
+                     * ClusterNodeStrategy.netxtNode()：
+                     */
                     currentConnector = new SimpleCanalConnector(null, username, password, destination) {
 
                         @Override
@@ -53,29 +58,36 @@ public class ClusterCanalConnector implements CanalConnector {
                         }
 
                     };
+                    /* 设置连接超时时间 */
                     currentConnector.setSoTimeout(soTimeout);
+                    /* 设置连接空闲时间（未使用） */
                     currentConnector.setIdleTimeout(idleTimeout);
+                    /* 设置过滤规则 */
                     if (filter != null) {
                         currentConnector.setFilter(filter);
                     }
+                    /* 设置zk客户端 */
                     if (accessStrategy instanceof ClusterNodeAccessStrategy) {
                         currentConnector.setZkClientx(((ClusterNodeAccessStrategy) accessStrategy).getZkClient());
                     }
-
+                    /* 连接服务端 */
                     currentConnector.connect();
                     break;
                 } catch (Exception e) {
                     logger.warn("failed to connect to:{} after retry {} times", accessStrategy.currentNode(), times);
                     currentConnector.disconnect();
                     currentConnector = null;
-                    // retry for #retryTimes for each node when trying to
-                    // connect to it.
+                    /* 失败次数 */
                     times = times + 1;
+                    /* retryTimes = 3
+                    超过失败次数则抛出异常 触发客户端HA切换*/
                     if (times >= retryTimes) {
                         throw new CanalClientException(e);
                     } else {
-                        // fixed issue #55，增加sleep控制，避免重试connect时cpu使用过高
+                        /* 增加sleep控制
+                        避免while(true)重试connect时cpu使用过高 */
                         try {
+                            /* retryInterval = 5000ms */
                             Thread.sleep(retryInterval);
                         } catch (InterruptedException e1) {
                             throw new CanalClientException(e1);
@@ -86,10 +98,12 @@ public class ClusterCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public boolean checkValid() {
         return currentConnector != null && currentConnector.checkValid();
     }
 
+    @Override
     public void disconnect() throws CanalClientException {
         if (currentConnector != null) {
             currentConnector.disconnect();
@@ -97,10 +111,13 @@ public class ClusterCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public void subscribe() throws CanalClientException {
-        subscribe(""); // 传递空字符即可
+        // 传递空字符即可
+        subscribe("");
     }
 
+    @Override
     public void subscribe(String filter) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -126,6 +143,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to subscribe after " + times + " times retry.");
     }
 
+    @Override
     public void unsubscribe() throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -143,6 +161,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to unsubscribe after " + times + " times retry.");
     }
 
+    @Override
     public Message get(int batchSize) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -160,6 +179,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to fetch the data after " + times + " times retry");
     }
 
+    @Override
     public Message get(int batchSize, Long timeout, TimeUnit unit) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -177,6 +197,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to fetch the data after " + times + " times retry");
     }
 
+    @Override
     public Message getWithoutAck(int batchSize) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -194,6 +215,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to fetch the data after " + times + " times retry");
     }
 
+    @Override
     public Message getWithoutAck(int batchSize, Long timeout, TimeUnit unit) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -211,6 +233,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to fetch the data after " + times + " times retry");
     }
 
+    @Override
     public void rollback(long batchId) throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -228,6 +251,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to rollback after " + times + " times retry");
     }
 
+    @Override
     public void rollback() throws CanalClientException {
         int times = 0;
         while (times < retryTimes) {
@@ -246,6 +270,7 @@ public class ClusterCanalConnector implements CanalConnector {
         throw new CanalClientException("failed to rollback after " + times + " times retry");
     }
 
+    @Override
     public void ack(long batchId) throws CanalClientException {
         int times = 0; // 错误次数
         while (times < retryTimes) {

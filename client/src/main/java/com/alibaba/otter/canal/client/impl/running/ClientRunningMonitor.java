@@ -25,7 +25,8 @@ import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
 import com.alibaba.otter.canal.protocol.exception.CanalClientException;
 
 /**
- * client running控制
+ * DONE
+ * clinet running控制
  * 
  * @author jianghang 2012-11-22 下午03:43:01
  * @version 1.0.0
@@ -47,6 +48,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
     public ClientRunningMonitor(){
         dataListener = new IZkDataListener() {
 
+            @Override
             public void handleDataChange(String dataPath, Object data) throws Exception {
                 MDC.put("destination", destination);
                 ClientRunningData runningData = JsonUtils.unmarshalFromByte((byte[]) data, ClientRunningData.class);
@@ -62,6 +64,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
                 activeData = (ClientRunningData) runningData;
             }
 
+            @Override
             public void handleDataDeleted(String dataPath) throws Exception {
                 MDC.put("destination", destination);
                 mutex.set(false);
@@ -74,6 +77,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
                     // 否则就是等待delayTime，避免因网络瞬端或者zk异常，导致出现频繁的切换操作
                     delayExector.schedule(new Runnable() {
 
+                        @Override
                         public void run() {
                             initRunning();
                         }
@@ -85,17 +89,22 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
 
     }
 
+    @Override
     public void start() {
         super.start();
 
+        /* 订阅 /otter/canal/destinations/--/1001/running 节点 */
         String path = ZookeeperPathUtils.getDestinationClientRunning(this.destination, clientData.getClientId());
         zkClient.subscribeDataChanges(path, dataListener);
+        /* 初始化...1001/running节点 */
         initRunning();
     }
 
+    @Override
     public void stop() {
         super.stop();
 
+        /* 取消订阅...1001/running节点 */
         String path = ZookeeperPathUtils.getDestinationClientRunning(this.destination, clientData.getClientId());
         zkClient.unsubscribeDataChanges(path, dataListener);
         releaseRunning(); // 尝试一下release
@@ -105,27 +114,33 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
         }
     }
 
-    // 改动记录：
-    // 1,在方法上加synchronized关键字,保证同步顺序执行;
-    // 2,判断Zk上已经存在的activeData是否是本机，是的话把mutex重置为true，否则会导致死锁
-    // 3,增加异常处理，保证出现异常时，running节点能被删除,否则会导致死锁
+    /**
+     * 改动记录：
+     * 1,在方法上加synchronized关键字,保证同步顺序执行;
+     * 2,判断Zk上已经存在的activeData是否是本机，是的话把mutex重置为true，否则会导致死锁
+     * 3,增加异常处理，保证出现异常时，running节点能被删除,否则会导致死锁
+     */
     public synchronized void initRunning() {
-        if (!isStart()) {
-            return;
-        }
+        if (!isStart()) { return; }
 
-        String path = ZookeeperPathUtils.getDestinationClientRunning(this.destination, clientData.getClientId());
+        String path = ZookeeperPathUtils
+                .getDestinationClientRunning(this.destination, clientData.getClientId());
         // 序列化
         byte[] bytes = JsonUtils.marshalToByte(clientData);
         try {
+            // 加锁
             mutex.set(false);
+            /* 创建一个临时的running节点 */
             zkClient.create(path, bytes, CreateMode.EPHEMERAL);
             processActiveEnter();// 触发一下事件
             activeData = clientData;
+            // 解锁
             mutex.set(true);
         } catch (ZkNodeExistsException e) {
+            /* 读取running节点信息 */
             bytes = zkClient.readData(path, true);
-            if (bytes == null) {// 如果不存在节点，立即尝试一次
+            /* 如果不存在节点，立即尝试一次重新初始化 */
+            if (bytes == null) {
                 initRunning();
             } else {
                 activeData = JsonUtils.unmarshalFromByte(bytes, ClientRunningData.class);
@@ -135,8 +150,11 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
                 }
             }
         } catch (ZkNoNodeException e) {
-            zkClient.createPersistent(ZookeeperPathUtils.getClientIdNodePath(this.destination, clientData.getClientId()),
-                true); // 尝试创建父节点
+            /* 父节点1001不存在，创建后重新尝试初始化 */
+            zkClient.createPersistent(ZookeeperPathUtils
+                            .getClientIdNodePath(this.destination, clientData.getClientId()),
+                true);
+            // 尝试创建父节点
             initRunning();
         } catch (Throwable t) {
             logger.error(MessageFormat.format("There is an error when execute initRunning method, with destination [{0}].",
@@ -164,6 +182,7 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
      */
     public void waitForActive() throws InterruptedException {
         initRunning();
+        /* false时阻塞等待另一个线程set(true) */
         mutex.get();
     }
 
@@ -197,10 +216,15 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
         }
     }
 
+    /**
+     * 释放running节点的占有
+     */
     public boolean releaseRunning() {
         if (check()) {
             String path = ZookeeperPathUtils.getDestinationClientRunning(this.destination, clientData.getClientId());
+            /* 异步删除节点 */
             zkClient.delete(path);
+            /* 阻塞其他线程的操作 */
             mutex.set(false);
             processActiveExit();
             return true;

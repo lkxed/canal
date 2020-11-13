@@ -24,17 +24,18 @@ public class SimpleNodeAccessStrategy implements CanalNodeAccessStrategy {
         this.nodes.addAll(nodes);
     }
 
+    @Override
     public SocketAddress nextNode() {
         try {
             return nodes.get(index);
         } finally {
             index = (index + 1) % nodes.size();
         }
-        /* 等价于
-        SocketAddress address = nodes.get(index);
+        /*
+        SocketAddress node = nodes.get(index);
         index = (index + 1) % nodes.size();
-        return address;
-        */
+        return node;
+         */
     }
 
     @Override

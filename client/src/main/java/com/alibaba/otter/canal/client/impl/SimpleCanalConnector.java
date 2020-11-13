@@ -73,7 +73,11 @@ public class SimpleCanalConnector implements CanalConnector {
     private boolean              rollbackOnConnect     = true;                                               // 是否在connect链接成功后，自动执行rollback操作
     private boolean              rollbackOnDisConnect  = false;                                              // 是否在connect链接成功后，自动执行rollback操作
     private boolean              lazyParseEntry        = false;                                              // 是否自动化解析Entry对象,如果考虑最大化性能可以延后解析
-    // 读写数据分别使用不同的锁进行控制，减小锁粒度,读也需要排他锁，并发度容易造成数据包混乱，反序列化失败
+    /**
+     * 读写数据分别使用不同的锁进行控制
+     * 减小锁粒度，读也需要排他锁，
+     * 并发度容易造成数据包混乱，反序列化失败
+     */
     private Object               readDataLock          = new Object();
     private Object               writeDataLock         = new Object();
 
@@ -98,37 +102,35 @@ public class SimpleCanalConnector implements CanalConnector {
         this.clientIdentity = new ClientIdentity(destination, (short) 1001);
     }
 
+    /**
+     * 客户端连接服务端
+     */
+    @Override
     public void connect() throws CanalClientException {
-        if (connected) {
-            return;
-        }
-
+        /* 已连接则直接返回 */
+        if (connected) { return; }
         if (runningMonitor != null) {
-            if (!runningMonitor.isStart()) {
-                runningMonitor.start();
-            }
-        } else {
+            /* runningMonitor不为空说明是基于ZK的集群模式
+            启动监听running节点 */
+            if (!runningMonitor.isStart()) { runningMonitor.start(); }
+        } else { // runningMonitor为空说明是单节点模式连接或者是执行自动切换
+            // TODO 等待running节点？
             waitClientRunning();
-            if (!running) {
-                return;
-            }
+            if (!running) { return; }
             doConnect();
-            if (filter != null) { // 如果存在条件，说明是自动切换，基于上一次的条件订阅一次
-                subscribe(filter);
-            }
-            if (rollbackOnConnect) {
-                rollback();
-            }
+            /* 如果存在条件，说明是自动切换，自动基于上一次的条件订阅一次 */
+            if (filter != null) { subscribe(filter); }
+            /* 默认true回滚 */
+            if (rollbackOnConnect) { rollback(); }
         }
-
         connected = true;
     }
 
+    @Override
     public void disconnect() throws CanalClientException {
         if (rollbackOnDisConnect && channel.isConnected()) {
             rollback();
         }
-
         connected = false;
         if (runningMonitor != null) {
             if (runningMonitor.isStart()) {
@@ -141,6 +143,7 @@ public class SimpleCanalConnector implements CanalConnector {
 
     private InetSocketAddress doConnect() throws CanalClientException {
         try {
+            /* 开启一个channel */
             channel = SocketChannel.open();
             /* 设置socket超时时间，超时会抛出SocketException */
             channel.socket().setSoTimeout(soTimeout);
@@ -148,6 +151,7 @@ public class SimpleCanalConnector implements CanalConnector {
             if (address == null) {
                 address = getNextAddress();
             }
+            /* 连接server */
             channel.connect(address);
             readableChannel = Channels.newChannel(channel.socket().getInputStream());
             writableChannel = Channels.newChannel(channel.socket().getOutputStream());
@@ -155,14 +159,11 @@ public class SimpleCanalConnector implements CanalConnector {
             if (p.getVersion() != 1) {
                 throw new CanalClientException("unsupported version at this client.");
             }
-
             if (p.getType() != PacketType.HANDSHAKE) {
                 throw new CanalClientException("expect handshake but found other type.");
             }
-            //
             Handshake handshake = Handshake.parseFrom(p.getBody());
             supportedCompressions.add(handshake.getSupportedCompressions());
-            //
             ByteString seed = handshake.getSeeds(); // seed for auth
             String newPasswd = password;
             if (password != null) {
@@ -181,7 +182,6 @@ public class SimpleCanalConnector implements CanalConnector {
                 .setBody(ca.toByteString())
                 .build()
                 .toByteArray());
-            //
             Packet ack = Packet.parseFrom(readNextPacket());
             if (ack.getType() != PacketType.ACK) {
                 throw new CanalClientException("unexpected packet type when ack is expected");
@@ -223,10 +223,13 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public void subscribe() throws CanalClientException {
-        subscribe(""); // 传递空字符即可
+        // 传递空字符即可
+        subscribe("");
     }
 
+    @Override
     public void subscribe(String filter) throws CanalClientException {
         waitClientRunning();
         if (!running) {
@@ -243,7 +246,6 @@ public class SimpleCanalConnector implements CanalConnector {
                     .toByteString())
                 .build()
                 .toByteArray());
-            //
             Packet p = Packet.parseFrom(readNextPacket());
             Ack ack = Ack.parseFrom(p.getBody());
             if (ack.getErrorCode() > 0) {
@@ -256,6 +258,7 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public void unsubscribe() throws CanalClientException {
         waitClientRunning();
         if (!running) {
@@ -271,7 +274,6 @@ public class SimpleCanalConnector implements CanalConnector {
                     .toByteString())
                 .build()
                 .toByteArray());
-            //
             Packet p = Packet.parseFrom(readNextPacket());
             Ack ack = Ack.parseFrom(p.getBody());
             if (ack.getErrorCode() > 0) {
@@ -282,20 +284,24 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public Message get(int batchSize) throws CanalClientException {
         return get(batchSize, null, null);
     }
 
+    @Override
     public Message get(int batchSize, Long timeout, TimeUnit unit) throws CanalClientException {
         Message message = getWithoutAck(batchSize, timeout, unit);
         ack(message.getId());
         return message;
     }
 
+    @Override
     public Message getWithoutAck(int batchSize) throws CanalClientException {
         return getWithoutAck(batchSize, null, null);
     }
 
+    @Override
     public Message getWithoutAck(int batchSize, Long timeout, TimeUnit unit) throws CanalClientException {
         waitClientRunning();
         if (!running) {
@@ -332,6 +338,7 @@ public class SimpleCanalConnector implements CanalConnector {
         return CanalMessageDeserializer.deserializer(data, lazyParseEntry);
     }
 
+    @Override
     public void ack(long batchId) throws CanalClientException {
         waitClientRunning();
         if (!running) {
@@ -353,6 +360,7 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public void rollback(long batchId) throws CanalClientException {
         waitClientRunning();
         ClientRollback ca = ClientRollback.newBuilder()
@@ -371,9 +379,11 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public void rollback() throws CanalClientException {
         waitClientRunning();
-        rollback(0);// 0代笔未设置
+        // 0代表未设置
+        rollback(0);
     }
 
     // ==================== helper method ====================
@@ -427,26 +437,22 @@ public class SimpleCanalConnector implements CanalConnector {
             runningMonitor.setZkClient(zkClientx);
             runningMonitor.setClientData(clientData);
             runningMonitor.setListener(new ClientRunningListener() {
-
+                @Override
                 public InetSocketAddress processActiveEnter() {
+                    /* 与server建立连接 */
                     InetSocketAddress address = doConnect();
                     mutex.set(true);
-                    if (filter != null) { // 如果存在条件，说明是自动切换，基于上一次的条件订阅一次
-                        subscribe(filter);
-                    }
-
-                    if (rollbackOnConnect) {
-                        rollback();
-                    }
-
+                    /* 如果存在条件，说明是自动切换，基于上一次的条件订阅一次 */
+                    if (filter != null) { subscribe(filter); }
+                    if (rollbackOnConnect) { rollback(); }
                     return address;
                 }
 
+                @Override
                 public void processActiveExit() {
                     mutex.set(false);
                     doDisconnect();
                 }
-
             });
         }
     }
@@ -454,10 +460,10 @@ public class SimpleCanalConnector implements CanalConnector {
     private void waitClientRunning() {
         try {
             if (zkClientx != null) {
-                if (!connected) {// 未调用connect
+                // 未调用connect
+                if (!connected) {
                     throw new CanalClientException("should connect first");
                 }
-
                 running = true;
                 mutex.get();// 阻塞等待
             } else {
@@ -470,6 +476,7 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public boolean checkValid() {
         if (zkClientx != null) {
             return mutex.state();
