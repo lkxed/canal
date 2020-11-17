@@ -42,7 +42,7 @@ public class ZkClusterTest {
                 int size = message.getEntries().size();
                 if (batchId == -1L || size == 0) {
                     try {
-                        Thread.sleep(TimeUnit.SECONDS.toMillis(2));
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(1));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

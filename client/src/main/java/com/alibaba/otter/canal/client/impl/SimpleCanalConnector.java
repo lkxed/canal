@@ -102,7 +102,7 @@ public class SimpleCanalConnector implements CanalConnector {
                 runningMonitor.start();
             }
         } else { // runningMonitor为空说明是单节点模式连接或者是执行自动切换
-            // TODO 等待running节点？
+            // TODO 这个方法的而作用是什么？
             waitClientRunning();
             if (!running) {
                 return;
@@ -114,6 +114,7 @@ public class SimpleCanalConnector implements CanalConnector {
             }
             /* 默认true回滚 */
             if (rollbackOnConnect) {
+                // TODO 这个方法的作用是什么？
                 rollback();
             }
         }
@@ -308,6 +309,7 @@ public class SimpleCanalConnector implements CanalConnector {
                 unit = TimeUnit.MILLISECONDS;
             }
 
+            // TODO size 和 time 是如何起作用的？
             writeWithHeader(Packet.newBuilder()
                     .setType(PacketType.GET)
                     .setBody(Get.newBuilder()

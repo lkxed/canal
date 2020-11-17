@@ -42,10 +42,11 @@ public class SimpleSingleTest {
                 logger.info("getting message... {}s", timeCount++);
                 Message message = connector.getWithoutAck(batchSize);
                 long batchId = message.getId();
+                logger.info("batchId = {}, batchSize = {}", batchId, batchSize);
                 int size = message.getEntries().size();
                 if (batchId == -1L || size == 0) {
                     try {
-                        Thread.sleep(TimeUnit.SECONDS.toMillis(2));
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(1));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
