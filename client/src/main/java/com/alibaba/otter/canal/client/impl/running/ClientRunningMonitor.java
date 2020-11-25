@@ -133,9 +133,10 @@ public class ClientRunningMonitor extends AbstractCanalLifeCycle {
             mutex.set(false);
             /* 创建一个临时的running节点 */
             zkClient.create(path, bytes, CreateMode.EPHEMERAL);
+            /* doConnect(); mutex.set(true); */
             processActiveEnter();// 触发一下事件
+            // TODO 上一条语句已经执行了 mutex.set(true)，之后再执行这条语句会不会有并发问题？
             activeData = clientData;
-            // 解锁
             mutex.set(true);
         } catch (ZkNodeExistsException e) {
             /* 读取running节点信息 */

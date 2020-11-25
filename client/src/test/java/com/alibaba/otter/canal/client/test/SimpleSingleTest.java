@@ -14,8 +14,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class SimpleSingleTest {
+
     private static final Logger logger = LoggerFactory.getLogger(SimpleSingleTest.class);
 
+    @SuppressWarnings("InfiniteLoopStatement")
     public static void main(String[] args) {
         String host = "vm1";
         int port = 11111;
@@ -42,7 +44,6 @@ public class SimpleSingleTest {
                 logger.info("getting message... {}s", timeCount++);
                 Message message = connector.getWithoutAck(batchSize);
                 long batchId = message.getId();
-                logger.info("batchId = {}, batchSize = {}", batchId, batchSize);
                 int size = message.getEntries().size();
                 if (batchId == -1L || size == 0) {
                     try {
@@ -51,9 +52,7 @@ public class SimpleSingleTest {
                         e.printStackTrace();
                     }
                 } else {
-                    logger.info("message id: {}", batchId);
                     List<CanalEntry.Entry> entries = message.getEntries();
-                    logger.info("message size: {}", batchSize);
                     ParseTool.printEntries(entries);
                 }
                 connector.ack(batchId);

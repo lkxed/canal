@@ -38,7 +38,7 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
 
             @Override
             public void handleChildChange(String parentPath, List<String> currentChilds) throws Exception {
-                /* 子节点变更后重新初始化集群地址列表 */
+                /* 子节点变更后重新初始化server地址列表 -> currentAddress */
                 initClusters(currentChilds);
             }
 
@@ -54,7 +54,7 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
 
             @Override
             public void handleDataChange(String dataPath, Object data) throws Exception {
-                /* 节点信息变更后重新初始化running节点（正在工作的节点） */
+                /* 节点信息变更后重新初始化running节点 -> runningAddress */
                 initRunning(data);
             }
 
@@ -92,7 +92,7 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
         if (currentChilds == null || currentChilds.isEmpty()) {
             currentAddress = new ArrayList<InetSocketAddress>();
         } else {
-            List<InetSocketAddress> addresses = new ArrayList<InetSocketAddress>();
+            List<InetSocketAddress> addresses = new ArrayList<>();
             for (String address : currentChilds) {
                 String[] strs = StringUtils.split(address, ":");
                 if (strs != null && strs.length == 2) {
@@ -113,7 +113,7 @@ public class ClusterNodeAccessStrategy implements CanalNodeAccessStrategy {
         ServerRunningData runningData = JsonUtils.unmarshalFromByte((byte[]) data, ServerRunningData.class);
         String[] strs = StringUtils.split(runningData.getAddress(), ':');
         if (strs.length == 2) {
-            runningAddress = new InetSocketAddress(strs[0], Integer.valueOf(strs[1]));
+            runningAddress = new InetSocketAddress(strs[0], Integer.parseInt(strs[1]));
         }
     }
 

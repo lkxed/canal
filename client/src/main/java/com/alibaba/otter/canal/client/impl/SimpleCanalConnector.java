@@ -91,32 +91,16 @@ public class SimpleCanalConnector implements CanalConnector {
      */
     @Override
     public void connect() throws CanalClientException {
-        /* 已连接则直接返回 */
-        if (connected) {
-            return;
-        }
-        if (runningMonitor != null) {
-            /* runningMonitor不为空说明是基于ZK的集群模式
-            启动监听running节点 */
-            if (!runningMonitor.isStart()) {
-                runningMonitor.start();
-            }
-        } else { // runningMonitor为空说明是单节点模式连接或者是执行自动切换
-            // TODO 这个方法的而作用是什么？
+        if (connected) { return; }
+        if (runningMonitor != null) { // 基于ZK的Cluster模式
+            if (!runningMonitor.isStart()) { runningMonitor.start();  }
+        } else { // 单节点直连 或 执行过自动切换
             waitClientRunning();
-            if (!running) {
-                return;
-            }
+            if (!running) { return; }
             doConnect();
-            /* 如果存在条件，说明是自动切换，自动基于上一次的条件订阅一次 */
-            if (filter != null) {
-                subscribe(filter);
-            }
-            /* 默认true回滚 */
-            if (rollbackOnConnect) {
-                // TODO 这个方法的作用是什么？
-                rollback();
-            }
+            // 如果存在条件，说明是自动切换，自动基于上一次的条件订阅一次
+            if (filter != null) { subscribe(filter); }
+            if (rollbackOnConnect) { rollback(); }
         }
         connected = true;
     }
@@ -138,18 +122,20 @@ public class SimpleCanalConnector implements CanalConnector {
 
     private InetSocketAddress doConnect() throws CanalClientException {
         try {
-            /* 开启一个channel */
             channel = SocketChannel.open();
-            /* 设置socket超时时间，超时会抛出SocketException */
             channel.socket().setSoTimeout(soTimeout);
-            SocketAddress address = getAddress();
+
+            SocketAddress address = this.address;
             if (address == null) {
-                address = getNextAddress();
+                address = getNextAddress(); // 调用 strategy.nextNode()
             }
+
             /* 连接server */
-            channel.connect(address);
+            channel.connect(address); // throws IOException
             readableChannel = Channels.newChannel(channel.socket().getInputStream());
             writableChannel = Channels.newChannel(channel.socket().getOutputStream());
+
+            /* 握手得到 seed */
             Packet p = Packet.parseFrom(readNextPacket());
             if (p.getVersion() != 1) {
                 throw new CanalClientException("unsupported version at this client.");
@@ -161,11 +147,10 @@ public class SimpleCanalConnector implements CanalConnector {
             supportedCompressions.add(handshake.getSupportedCompressions());
             ByteString seed = handshake.getSeeds(); // seed for auth
             String newPasswd = password;
-            if (password != null) {
-                // encode passwd
+            if (password != null) { // 密码加密
                 newPasswd = SecurityUtil.byte2HexStr(SecurityUtil.scramble411(password.getBytes(), seed.toByteArray()));
             }
-
+            /* 认证 */
             ClientAuth ca = ClientAuth.newBuilder()
                     .setUsername(username != null ? username : "")
                     .setPassword(ByteString.copyFromUtf8(newPasswd != null ? newPasswd : ""))
@@ -181,7 +166,6 @@ public class SimpleCanalConnector implements CanalConnector {
             if (ack.getType() != PacketType.ACK) {
                 throw new CanalClientException("unexpected packet type when ack is expected");
             }
-
             Ack ackBody = Ack.parseFrom(ack.getBody());
             if (ackBody.getErrorCode() > 0) {
                 throw new CanalClientException("something goes wrong when doing authentication: "
@@ -227,9 +211,7 @@ public class SimpleCanalConnector implements CanalConnector {
     @Override
     public void subscribe(String filter) throws CanalClientException {
         waitClientRunning();
-        if (!running) {
-            return;
-        }
+        if (!running) { return; }
         try {
             writeWithHeader(Packet.newBuilder()
                     .setType(PacketType.SUBSCRIPTION)
@@ -246,7 +228,6 @@ public class SimpleCanalConnector implements CanalConnector {
             if (ack.getErrorCode() > 0) {
                 throw new CanalClientException("failed to subscribe with reason: " + ack.getErrorMessage());
             }
-
             clientIdentity.setFilter(filter);
         } catch (IOException e) {
             throw new CanalClientException(e);
@@ -299,17 +280,11 @@ public class SimpleCanalConnector implements CanalConnector {
     @Override
     public Message getWithoutAck(int batchSize, Long timeout, TimeUnit unit) throws CanalClientException {
         waitClientRunning();
-        if (!running) {
-            return null;
-        }
+        if (!running) { return null; }
         try {
             int size = (batchSize <= 0) ? 1000 : batchSize;
             long time = (timeout == null || timeout < 0) ? -1 : timeout; // -1代表不做timeout控制
-            if (unit == null) {
-                unit = TimeUnit.MILLISECONDS;
-            }
-
-            // TODO size 和 time 是如何起作用的？
+            if (unit == null) { unit = TimeUnit.MILLISECONDS; }
             writeWithHeader(Packet.newBuilder()
                     .setType(PacketType.GET)
                     .setBody(Get.newBuilder()
@@ -425,8 +400,8 @@ public class SimpleCanalConnector implements CanalConnector {
     private synchronized void initClientRunningMonitor(ClientIdentity clientIdentity) {
         if (zkClientx != null && clientIdentity != null && runningMonitor == null) {
             ClientRunningData clientData = new ClientRunningData();
-            clientData.setClientId(clientIdentity.getClientId());
-            clientData.setAddress(AddressUtils.getHostIp());
+            clientData.setClientId(clientIdentity.getClientId()); // 1001
+            clientData.setAddress(AddressUtils.getHostIp()); // localhost ip
 
             runningMonitor = new ClientRunningMonitor();
             runningMonitor.setDestination(clientIdentity.getDestination());
@@ -459,15 +434,15 @@ public class SimpleCanalConnector implements CanalConnector {
 
     private void waitClientRunning() {
         try {
-            if (zkClientx != null) {
+            if (zkClientx != null) { // 集群模式
                 // 未调用connect
                 if (!connected) {
                     throw new CanalClientException("should connect first");
                 }
                 running = true;
-                mutex.get();// 阻塞等待
+                mutex.get(); // 非运行中的 server 阻塞等待
             } else {
-                // 单机模式直接设置为running
+                // 单机模式直接设置为 running
                 running = true;
             }
         } catch (InterruptedException e) {

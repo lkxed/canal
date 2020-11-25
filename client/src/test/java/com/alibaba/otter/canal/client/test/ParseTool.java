@@ -22,15 +22,23 @@ public class ParseTool {
         logger.info("entries.size(): {}", entries.size());
         for (Entry entry : entries) {
             ByteString storeValue = entry.getStoreValue();
-            RowChange rowChange = RowChange.parseFrom(storeValue);
-            logger.info("rowChange.getEventType(): {}", rowChange.getEventType());
-            List<RowData> rowDataList = rowChange.getRowDatasList();
-            logger.info("rowDataList.size(): {}", rowDataList.size());
-            for (RowData rowData : rowDataList) {
-                List<Column> beforeColumnsList = rowData.getBeforeColumnsList();
-                List<Column> afterColumnsList = rowData.getAfterColumnsList();
-                logger.info("beforeColumns: {}", parseColumns(beforeColumnsList));
-                logger.info("afterColumns: {}", parseColumns(afterColumnsList));
+            EntryType entryType = entry.getEntryType();
+            logger.info("-----------------------------------");
+            logger.info("entry.getEntryType(): {}", entryType);
+            if (entryType.getNumber() == EntryType.ROWDATA_VALUE) {
+                RowChange rowChange = RowChange.parseFrom(storeValue);
+                logger.info("rowChange.getEventType(): {}", rowChange.getEventType());
+                logger.info("rowChange.getIsDdl(): {}", rowChange.getIsDdl());
+                if (rowChange.getIsDdl()) {
+                    logger.info("rowChange.getSql(): {}", rowChange.getSql());
+                }
+                List<RowData> rowDataList = rowChange.getRowDatasList();
+                for (RowData rowData : rowDataList) {
+                    List<Column> beforeColumnsList = rowData.getBeforeColumnsList();
+                    List<Column> afterColumnsList = rowData.getAfterColumnsList();
+                    logger.info("beforeColumns: {}", parseColumns(beforeColumnsList));
+                    logger.info(" afterColumns: {}", parseColumns(afterColumnsList));
+                }
             }
         }
     }

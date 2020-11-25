@@ -79,12 +79,7 @@ public class CanalServerWithEmbedded extends AbstractCanalLifeCycle implements C
             loadCanalMetrics();
             metrics.setServerPort(metricsPort);
             metrics.initialize();
-            canalInstances = MigrateMap.makeComputingMap(new Function<String, CanalInstance>() {
-
-                public CanalInstance apply(String destination) {
-                    return canalInstanceGenerator.generate(destination);
-                }
-            });
+            canalInstances = MigrateMap.makeComputingMap(destination -> canalInstanceGenerator.generate(destination));
 
             // lastRollbackPostions = new MapMaker().makeMap();
         }
